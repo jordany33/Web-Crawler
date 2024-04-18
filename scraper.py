@@ -57,13 +57,7 @@ def is_valid(url):
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
-        #Returns false if the url is not within the domains and paths mentioned above
-        if (url.find("ics.uci.edu") or 
-                url.find("cs.uci.edu") or 
-                url.find("informatics.uci.edu") or 
-                url.find("stat.uci.edu")):
-            return True
-        if not re.match(
+        if re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
@@ -73,7 +67,12 @@ def is_valid(url):
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
-
+        #Returns false if the url is not within the domains and paths mentioned above
+        if (url.find("ics.uci.edu") or 
+                url.find("cs.uci.edu") or 
+                url.find("informatics.uci.edu") or 
+                url.find("stat.uci.edu")):
+            return True
         return False
     except TypeError:
         print ("TypeError for ", parsed)
