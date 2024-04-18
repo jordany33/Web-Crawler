@@ -2,6 +2,8 @@ import re
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
+seenURLs = set()
+
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
@@ -38,10 +40,11 @@ def extract_next_links(url, resp):
         #Removes the fragment if there is one before adding to the list of URLs
         toAdd = link.get('href')
         frag = toAdd.find('#')
-        if frag == -1:
+        if frag != -1:
+            toAdd = toAdd[0:frag]
+        if toAdd not in seenURLs:
             extracted_urls.append(toAdd)
-        else:
-            extracted_urls.append(toAdd[0:frag])
+            seenURLs.add(toAdd)
 
     return extracted_urls
 
