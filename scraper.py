@@ -39,12 +39,13 @@ def extract_next_links(url, resp):
     for link in links:
         #Removes the fragment if there is one before adding to the list of URLs
         toAdd = link.get('href')
-        frag = toAdd.find('#')
-        if frag != -1:
-            toAdd = toAdd[0:frag]
-        if toAdd not in seenURLs:
-            extracted_urls.append(toAdd)
-            seenURLs.add(toAdd)
+        if toAdd is not None:
+            frag = toAdd.find('#')
+            if frag != -1:
+                toAdd = toAdd[0:frag]
+            if toAdd not in seenURLs:
+                extracted_urls.append(toAdd)
+                seenURLs.add(toAdd)
 
     return extracted_urls
 
