@@ -21,7 +21,7 @@ def extract_next_links(url, resp):
     extracted_urls =[]
     
     #Checks to make sure status code is 200/OK meaning we got the page
-    if resp.status_code == 200:
+    if resp.status == 200:
         html_content = resp.raw_response.content
     #Returns empty list if we failed to get the page
     else:
