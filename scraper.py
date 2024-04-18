@@ -57,10 +57,10 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
         #Returns false if the url is not within the domains and paths mentioned above
-        if not ("ics.uci.edu" in url or 
-                "cs.uci.edu" in url or 
-                "informatics.uci.edu" in url or 
-                "stat.uci.edu" in url):
+        if not (url.find("ics.uci.edu") or 
+                url.find("cs.uci.edu") or 
+                url.find("informatics.uci.edu") or 
+                url.find("stat.uci.edu")):
             return False
         if not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
