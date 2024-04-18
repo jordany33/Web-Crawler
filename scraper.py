@@ -68,10 +68,10 @@ def is_valid(url):
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
         #Returns false if the url is not within the domains and paths mentioned above
-        if (url.find("ics.uci.edu") or 
-                url.find("cs.uci.edu") or 
-                url.find("informatics.uci.edu") or 
-                url.find("stat.uci.edu")):
+        if ((url.find("ics.uci.edu") != -1) or 
+                (url.find("cs.uci.edu") != -1) or 
+                (url.find("informatics.uci.edu") != -1) or 
+                (url.find("stat.uci.edu") != -1)):
             return True
         return False
     except TypeError:
