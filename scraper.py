@@ -22,7 +22,7 @@ def extract_next_links(url, resp):
     if resp.status_code == 200:
         html_content = resp.raw_response.content
     else:
-        print(f'Failed to retrieve page: Status code {resp.status_code}')
+        return []
 
     if html_content:
         html_parsed = BeautifulSoup(html_content, 'html.parser')
