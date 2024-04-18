@@ -19,16 +19,24 @@ def extract_next_links(url, resp):
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     extracted_urls =[]
     
+    #Checks to make sure status code is 200/OK meaning we got the page
     if resp.status_code == 200:
         html_content = resp.raw_response.content
+    #Returns empty list if we failed to get the page
     else:
         return []
 
+    #If there is content
     if html_content:
         html_parsed = BeautifulSoup(html_content, 'html.parser')
+    else:
+        #Return early if there is no content, nothing to explore in that URL
+        return []
 
+    #Extracts all the URLs found within a page’s <a> tags, based on beautiful soup documentation
     links = html_parsed.find_all('a')
     for link in links:
+        #Removes the fragment if there is one before adding to the list of URLs
         toAdd = link.get('href')
         frag = toAdd.find('#')
         if frag == -1:
