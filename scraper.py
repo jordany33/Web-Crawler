@@ -29,8 +29,12 @@ def extract_next_links(url, resp):
 
     links = html_parsed.find_all('a')
     for link in links:
-        extracted_urls.append(link.get('href'))
-
+        toAdd = link.get('href')
+        frag = toAdd.find('#')
+        if frag == -1:
+            extracted_urls.append(toAdd)
+        else:
+            extracted_urls.append(toAdd[0:frag])
 
     return extracted_urls
 
