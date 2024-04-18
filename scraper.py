@@ -35,7 +35,7 @@ def extract_next_links(url, resp):
     return extracted_urls
 
 def is_valid(url):
-    # Decide whether to crawl this url or not. 
+    # Decide whether to crawl these four URL's or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
