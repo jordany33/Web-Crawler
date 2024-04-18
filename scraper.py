@@ -35,13 +35,14 @@ def extract_next_links(url, resp):
     return extracted_urls
 
 def is_valid(url):
-    # Decide whether to crawl these four URL's or not. 
+    # Decide whether to crawl these this or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
+        #Returns false if the url is not within the domains and paths mentioned above
         if not (parsed.netloc.endswith("ics.uci.edu") or 
                 parsed.netloc.endswith("cs.uci.edu") or 
                 parsed.netloc.endswith("informatics.uci.edu") or 
