@@ -19,7 +19,7 @@ def extract_next_links(url, resp):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     extracted_urls =[]
-    
+    seenURLs.add(url)
     #Checks to make sure status code is 200/OK meaning we got the page
     if resp.status == 200:
         html_content = resp.raw_response.content
@@ -38,14 +38,13 @@ def extract_next_links(url, resp):
     links = html_parsed.find_all('a')
     for link in links:
         #Removes the fragment if there is one before adding to the list of URLs
-        toAdd = link.get('href')
-        if toAdd is not None:
+        if link.get('href'):
+            toAdd = link.get('href')
+            toadd = urljoin(url, toAdd)
             frag = toAdd.find('#')
             if frag != -1:
                 toAdd = toAdd[0:frag]
-            if toAdd not in seenURLs:
-                extracted_urls.append(toAdd)
-                seenURLs.add(toAdd)
+            extracted_urls.append(toAdd)
 
     return extracted_urls
 
@@ -54,6 +53,9 @@ def is_valid(url):
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
+        if url in seenURLs:
+            return False
+        seenURLs.add(toAdd)
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -68,10 +70,10 @@ def is_valid(url):
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
         #Returns false if the url is not within the domains and paths mentioned above
-        if ((url.find("ics.uci.edu") != -1) or 
-                (url.find("cs.uci.edu") != -1) or 
-                (url.find("informatics.uci.edu") != -1) or 
-                (url.find("stat.uci.edu") != -1)):
+        if ((("ics.uci.edu") in url) or 
+                (("cs.uci.edu") in url) or 
+                (("informatics.uci.edu") in url) or 
+                (("stat.uci.edu") in url)):
             return True
         return False
     except TypeError:
