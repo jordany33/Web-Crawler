@@ -129,10 +129,10 @@ def is_valid(url):
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
         #Returns false if the url is not within the domains and paths mentioned above
-        if ((("ics.uci.edu") in (parsed.netloc)) or 
-                (("cs.uci.edu") in (parsed.netloc)) or 
-                (("informatics.uci.edu") in (parsed.netloc)) or 
-                (("stat.uci.edu") in (parsed.netloc))):
+        if (((".ics.uci.edu") in (parsed.netloc)) or 
+                ((".cs.uci.edu") in (parsed.netloc)) or 
+                ((".informatics.uci.edu") in (parsed.netloc)) or 
+                ((".stat.uci.edu") in (parsed.netloc))):
             return True
         return False
     except TypeError:
