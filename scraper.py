@@ -8,7 +8,7 @@ alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q",
 maxSize = -1
 
 #Reads the content and returns a list of the alphanumeric tokens within it
-def tokenize(content: str) -> list['Tokens']:
+def tokenize(content: str) -> list:
     #Vars below are our current token we are building and the list of tokens respectively
     curTok = ''
     tokens = []
@@ -113,7 +113,7 @@ def is_valid(url):
     try:
         if url in seenURLs:
             return False
-        seenURLs.add(toAdd)
+        seenURLs.add(url)
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
