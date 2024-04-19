@@ -3,6 +3,55 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
 seenURLs = set()
+words = {}
+alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
+maxSize = -1
+
+#Reads the content and returns a list of the alphanumeric tokens within it
+def tokenize(content: str) -> list['Tokens']:
+    #Vars below are our current token we are building and the list of tokens respectively
+    curTok = ''
+    tokens = []
+    file = None
+    cur = 0
+    #Going through the content string at a time
+    while cur < len(content):
+        #Read at most 5 chars
+        c = content[cur]
+        #converts character to lowercase if it is alpha, done since we don't care about capitalization, makes it easier to check given
+        #we made our list's alpha characters only lowercase
+        c = c.lower()
+        #If c is alphanum, concatenate it to our current token, else add the current token to list if not empty string and start on a new token
+        if c in alphaNum:
+            curTok = curTok + c
+        else:
+            if curTok != '':
+                tokens.append(curTok)
+                curTok = ''
+        cur = cur + 1
+    #For when we reach the end of the content, check what our last token is
+    #If our curTok isn't empty, add it to token list
+    if curTok != '':
+        tokens.append(curTok)
+    return tokens
+
+#Our compute word frequencies from Assignment 1, we will use it to update our global dictionary of tokens using the token list
+def compute_word_frequencies(token_list: list) -> None:
+    """
+    Counts and returns the number of occurrences of each token in the 
+    token list using a dictionary.
+
+    :param tokens: List of tokens 
+    :return: dict, mapping each token to the number of occurrences
+    """
+    #Checks to see if token is in words, updates the count if it is, otherwise sets the count to 1
+    for i in token_list:
+        if i in words:
+            words[i] += 1
+        else:
+            words[i] = 1
+    return
+
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -27,9 +76,18 @@ def extract_next_links(url, resp):
     else:
         return []
 
-    #If there is content
+    #If there is content, parse it
     if html_content:
-        html_parsed = BeautifulSoup(html_content, 'html.parser')
+        html_parsed = BeautifulSoup(html_content, 'lxml')
+        #Tokenize the string, then update the max_size variable and the frequency count of tokens
+        tokens = tokenize(html_parsed.get_text())
+        if maxSize == -1 or max_size < len(tokens):
+            maxSize == len(tokens)
+        compute_word_frequencies(tokens)
+        #Create a stats.txt if it doesn't exist, otherwise overwrite it
+        stats = open("stats.txt", "w")
+        print(f"Current token list: {words}", file = stats)
+        print(f"Current page with max size is: {maxSize}", file = stats)
     else:
         #Return early if there is no content, nothing to explore in that URL
         return []
@@ -40,7 +98,7 @@ def extract_next_links(url, resp):
         #Removes the fragment if there is one before adding to the list of URLs
         if link.get('href'):
             toAdd = link.get('href')
-            toadd = urljoin(url, toAdd)
+            toadd = urlparse.urljoin(url, toAdd)
             frag = toAdd.find('#')
             if frag != -1:
                 toAdd = toAdd[0:frag]
