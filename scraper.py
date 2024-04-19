@@ -82,7 +82,7 @@ def extract_next_links(url, resp):
         #Tokenize the string, then update the max_size variable and the frequency count of tokens
         tokens = tokenize(html_parsed.get_text())
         if maxSize == -1 or maxSize < len(tokens):
-            maxSize == len(tokens)
+            maxSize = len(tokens)
         compute_word_frequencies(tokens)
         #Create a stats.txt if it doesn't exist, otherwise overwrite it
         stats = open("stats.txt", "w")
