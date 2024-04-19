@@ -1,6 +1,6 @@
 import re
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 seenURLs = set()
 words = {}
@@ -98,7 +98,7 @@ def extract_next_links(url, resp):
         #Removes the fragment if there is one before adding to the list of URLs
         if link.get('href'):
             toAdd = link.get('href')
-            toadd = urlparse.urljoin(url, toAdd)
+            toadd = urljoin(url, toAdd)
             frag = toAdd.find('#')
             if frag != -1:
                 toAdd = toAdd[0:frag]
