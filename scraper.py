@@ -78,6 +78,7 @@ def extract_next_links(url, resp):
 
     #If there is content, parse it
     if html_content:
+        global maxSize
         html_parsed = BeautifulSoup(html_content, 'lxml')
         #Tokenize the string, then update the max_size variable and the frequency count of tokens
         tokens = tokenize(html_parsed.get_text())
