@@ -7,6 +7,10 @@ words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
 maxSize = -1
 
+def number_fragments(url):
+    parsed_url=urlparse(url)
+    return len(parsed_url.path.split('/')) - 1
+
 #Reads the content and returns a list of the alphanumeric tokens within it
 def tokenize(content: str) -> list:
     #Vars below are our current token we are building and the list of tokens respectively
@@ -96,14 +100,15 @@ def extract_next_links(url, resp):
     #Extracts all the URLs found within a page’s <a> tags, based on beautiful soup documentation
     links = html_parsed.find_all('a')
     for link in links:
-        #Removes the fragment if there is one before adding to the list of URLs
-        if link.get('href'):
-            toAdd = link.get('href')
-            toadd = urljoin(url, toAdd)
-            frag = toAdd.find('#')
-            if frag != -1:
-                toAdd = toAdd[0:frag]
-            extracted_urls.append(toAdd)
+        #Removes the fragment if there is one before adding to the list of URLs and only if the number of fragments of the link is less than 9
+        if number_fragments(link) < 2:
+            if link.get('href'):
+                toAdd = link.get('href')
+                toadd = urljoin(url, toAdd)
+                frag = toAdd.find('#')
+                if frag != -1:
+                    toAdd = toAdd[0:frag]
+                extracted_urls.append(toAdd)
 
     return extracted_urls
 
