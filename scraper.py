@@ -9,7 +9,13 @@ maxSize = -1
 
 def number_fragments(url):
     parsed_url=urlparse(url)
-    return len(parsed_url.path.split('/')) - 1
+
+    if isinstance(parsed_url.path, bytes):
+        path_str = parsed_url.path.decode('utf-8')
+    else:
+        path_str = parsed_url.path
+
+    return len(path_str.split('/')) - 1
 
 #Reads the content and returns a list of the alphanumeric tokens within it
 def tokenize(content: str) -> list:
@@ -101,7 +107,7 @@ def extract_next_links(url, resp):
     links = html_parsed.find_all('a')
     for link in links:
         #Removes the fragment if there is one before adding to the list of URLs and only if the number of fragments of the link is less than 9
-        if number_fragments(link) < 2:
+        if number_fragments(link.get('href')) < 8:
             if link.get('href'):
                 toAdd = link.get('href')
                 toadd = urljoin(url, toAdd)
