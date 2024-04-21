@@ -9,13 +9,8 @@ maxSize = -1
 
 def number_fragments(url):
     parsed_url=urlparse(url)
-
-    if isinstance(parsed_url.path, bytes):
-        path_str = parsed_url.path.decode('utf-8')
-    else:
-        path_str = parsed_url.path
-
-    return len(path_str.split('/')) - 1
+    
+    return len(parsed_url.path.split('/')) - 1
 
 #Reads the content and returns a list of the alphanumeric tokens within it
 def tokenize(content: str) -> list:
