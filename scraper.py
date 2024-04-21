@@ -8,6 +8,14 @@ words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
 maxSize = [-1, '']
 
+#Takes in the base url and relative url and appends them together to create an absolute url
+def absolute_url(base_url, rel_url):
+    if '.' in base_url.split('/')[-1]:
+        return " "
+    else:
+        base_url += '/'
+        return urljoin(base_url, rel_url)
+
 #Attempts to load all our global values from their stored pickle files if they exist, otherwise gives them default values
 def pickleLoad() ->None:
     return
