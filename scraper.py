@@ -114,6 +114,7 @@ def extract_next_links(url, resp):
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     extracted_urls =[]
     seenURLs.add(url)
+    
     #Checks to make sure status code is 200/OK meaning we got the page
     if resp.status == 200:
         html_content = resp.raw_response.content
