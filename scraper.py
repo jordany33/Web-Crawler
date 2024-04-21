@@ -5,6 +5,7 @@ from urllib.parse import urlparse, urljoin
 from simhash import Simhash
 
 seenURLs = set()
+crawledURLs = set()
 seenSimHash_values= []
 words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
@@ -49,13 +50,13 @@ def isLowVal(freqs: dict)->bool:
             countStop = countStop + freqs[x]
     if countTotal == 0:
         return True
-    return ((float(countStop)/float(countTotal))>0.65)
+    return ((float(countStop)/float(countTotal))>0.75)
 
 #Compute simhash of our file using the passed in dictionary and returns a bool indicating if it was similar to previous ones or not
 def simhashClose(tokens_dict):
     global seenSimHash_values
     simhash_val = Simhash(tokens_dict)
-    if len(seenSimHash_values)>1 and any(simhash_val.distance(i) <= 3 for i in seenSimHash_values):
+    if len(seenSimHash_values)>1 and any(simhash_val.distance(i) < 3 for i in seenSimHash_values):
         return True
     seenSimHash_values.append(simhash_val)
     pickleSaveSimHash()
@@ -67,6 +68,7 @@ def pickleLoad() ->None:
     pickleLoadSimHash()
     pickleLoadWords()
     pickleLoadMax()
+    pickleLoadCrawledUrls()
     return
 
 #Attempts to load seenurls from pickle file
@@ -76,6 +78,19 @@ def pickleLoadSeenUrls():
         global seenURLs
         file = open("pickleSeenUrls", "rb")
         seenURLs = pickle.load(file)
+    except:
+        pass
+    finally:
+        if file != None:
+            file.close()
+        return
+#Attempts to load craweldurls from pickle file
+def pickleLoadCrawledUrls():
+    file = None
+    try:
+        global crawledURLs
+        file = open("pickleCrawledUrls", "rb")
+        crawledURLs = pickle.load(file)
     except:
         pass
     finally:
@@ -149,6 +164,14 @@ def pickleSaveUrls() ->None:
     file.close
     return
 
+#Attempts to save set of seen URLs into their pickle file
+def pickleSaveCrawls() ->None:
+    global crawledURLs
+    file = open("pickleCrawledUrls", "wb")
+    pickle.dump(crawledURLs, file)
+    file.close
+    return
+
 #Attempts to save set pair of max size and corresponding url into their pickle file
 def pickleSaveMax() ->None:
     global maxSize
@@ -159,19 +182,15 @@ def pickleSaveMax() ->None:
 
 #Returns absolute path given base url and rel_url
 def getAbsolute(base_url:str, rel_url:str) ->str:
-    orig = base_url
     #If they're the same just return the base back
     if base_url == rel_url:
         return base_url
     parsed_url = urlparse(base_url)
-    #Adding the / here to allow us to make valid absolute URLs, since normally it gets stripped and urljoin creates incorrect urls
-    if '.' not in parsed_url.path.split('/')[-1]:
+    #Adding the / to base to allow us to make valid absolute URLs if the rel_url has no slash in front, 
+    #since normally it gets stripped and urljoin creates incorrect urls
+    if rel_url.find('/') != 0 and '.' not in parsed_url.path.split('/')[-1]:
         base_url = base_url + '/'
-    new_url = urljoin(base_url, rel_url)
-    #If its not a new url compared to the base, return back joined original and relative, otherwise return new one 
-    if base_url != new_url:
-        return new_url
-    return urljoin(orig, rel_url)
+    return urljoin(base_url, rel_url)
 
 #Given a url, returns how many directories deep it is in it's path 
 def directory_length(url) -> int:
@@ -260,6 +279,8 @@ def extract_next_links(url, resp):
     extracted_urls =[]
     seenURLs.add(url)
     pickleSaveUrls()
+    crawledURLs.add(url)
+    pickleSaveCrawls()
     #Checks to make sure status code is 200/OK meaning we got the page
     if resp.status == 200:
         html_content = resp.raw_response.content
