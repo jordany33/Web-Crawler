@@ -2,8 +2,10 @@ import re
 import pickle
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
+from simhash import Simhash
 
 seenURLs = set()
+seenSimHash_values= set()
 words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
 maxSize = [-1, '']
@@ -200,7 +202,7 @@ def is_valid(url):
         if directory_length(url) > 10:
             return False
         #If url too similar, may be a pattern that leads to trap
-        if any(similarUrl(url, x) for x in seenUrls):
+        if any(similarUrl(url, x) for x in seenURLs):
             return False
         seenURLs.add(url)
         parsed = urlparse(url)
