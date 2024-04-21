@@ -2,8 +2,10 @@ import re
 import pickle
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
+from simhash import Simhash
 
 seenURLs = set()
+seenSimHash_values= set()
 words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
 maxSize = [-1, '']
@@ -91,6 +93,14 @@ def updateDict(dic2:dict) -> None:
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
+
+def simhashing(tokens_dict, seenSimHash_values):
+    simhash_page = Simhash(tokens_dict)
+    if any(simhash_page.distance(Simhash(i)) <= 3 for i in seenSimHash_values):
+        return []
+    
+    seenSimHash_values.add(simhash_page.value)
+    return simhash_page.value
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -182,3 +192,4 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
