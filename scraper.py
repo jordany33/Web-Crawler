@@ -7,6 +7,48 @@ seenURLs = set()
 words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
 maxSize = [-1, '']
+stopWords = ['a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', "can't", 'cannot', 'could', "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't", 'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how', "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most', "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours\tourselves', 'out', 'over', 'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should', "shouldn't", 'so', 'some', 'such', 'than', 'that', "that's", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd", "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when', "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom', 'why', "why's", 'with', "won't", 'would', "wouldn't", 'you', "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves']
+
+#Compares URLs based on their paths, returning a bool determining if they are similar enough based on a threshold similarity value
+def similarUrl(url1: str, url2: str) ->bool:
+    #Parse urls
+    parsed_url1 = urlparse(url1)
+    parsed_url2 = urlparse(url2)
+    #If different domain don't worry, or if any path has no characters
+    if (parsed_url1.netloc != parsed_url2.netloc):
+        return False
+    #Get minimum path length, if its zero you can return since one doesn't have a path, and we already accounted for identical urls elsewhere
+    len1 = len(parsed_url1.path)
+    len2 = len(parsed_url1.path)
+    minLength = min(len1, len2)
+    #Get max and difference in lengths to calculate proportion of identical characters in same index
+    maxLength = max(len1, len2)
+    diffLen = abs(len1 - len2)
+    if minLength == 0:
+        return False
+    #Var to count how many letters they share in the same index
+    simCount = 0
+    #Count letters they shared in the same index
+    for x in range(minLength):
+        if parsed_url1.path[x] == parsed_url2.path[x]:
+            simCount = simCount + 1
+    #Return true to indicate similar if similarity proportion higher than threshold
+    return ((float(simCount)/float(maxLength))> 0.9)
+
+#Returns a boolean indicating whether or not the information reaches has low information value
+#Informational value calculated by proportion of stop words to real words
+def isLowVal(freqs: dict)->bool:
+    #Counts frequency of stop and total words, then finds proportion of stop words relative to total
+    countStop = 0
+    countTotal = 0
+    for x in freqs.keys():
+        countTotal = countTotal + freqs[x]
+        if x in stopWords:
+            countStop = countStop + freqs[x]
+    if countTotal == 0:
+        return True
+    return ((float(countStop)/float(countTotal))>0.65)
+
 
 #Attempts to load all our global values from their stored pickle files if they exist, otherwise gives them default values
 def pickleLoad() ->None:
@@ -19,13 +61,7 @@ def pickleLoad() ->None:
 #Given a url, returns how many directories deep it is in it's path 
 def directory_length(url) -> int:
     parsed_url=urlparse(url)
-
-    if isinstance(parsed_url.path, bytes):
-        path_str = parsed_url.path.decode('utf-8')
-    else:
-        path_str = parsed_url.path
-
-    return len(path_str.split('/')) - 1
+    return len(parsed_url.path.split('/')) - 1
 
 #Reads the content and returns a list of the alphanumeric tokens within it
 def tokenize(content: str) -> list:
@@ -124,7 +160,12 @@ def extract_next_links(url, resp):
         if maxSize[0] == -1 or maxSize[0] < len(tokens):
             maxSize[0] = len(tokens)
             maxSize[1] = url
+        #Calculate the given urls' word frequencies
         newFreqs = compute_word_frequencies(tokens)
+        #Check if low information value, return empty list if so because mostly stop words
+        if isLowVal(newFreqs):
+            return []
+        #Update global counts
         updateDict(newFreqs)
         #Create a stats.txt if it doesn't exist, otherwise overwrite it
         stats = open("stats.txt", "w")
@@ -157,6 +198,9 @@ def is_valid(url):
             return False
         #If you go really deep into directories, at a certain threshold you are probably going into a trap
         if directory_length(url) > 10:
+            return False
+        #If url too similar, may be a pattern that leads to trap
+        if any(similarUrl(url, x) for x in seenUrls):
             return False
         seenURLs.add(url)
         parsed = urlparse(url)
