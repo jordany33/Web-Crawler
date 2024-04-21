@@ -58,14 +58,103 @@ def simhashClose(tokens_dict):
     if len(seenSimHash_values)>1 and any(simhash_val.distance(i) <= 3 for i in seenSimHash_values):
         return True
     seenSimHash_values.append(simhash_val)
+    pickleSaveSimHash()
     return False
 
 #Attempts to load all our global values from their stored pickle files if they exist, otherwise gives them default values
 def pickleLoad() ->None:
+    pickleLoadSeenUrls()
+    pickleLoadSimHash()
+    pickleLoadWords()
+    pickleLoadMax()
     return
 
-#Attempts to save all our global values into their pickle files
-def pickleSave() ->None:
+#Attempts to load seenurls from pickle file
+def pickleLoadSeenUrls():
+    file = None
+    try:
+        global seenURLs
+        file = open("pickleSeenUrls", "rb")
+        seenURLs = pickle.load(file)
+    except:
+        pass
+    finally:
+        if file != None:
+            file.close()
+        return
+
+#Attempts to load simhash list from pickle file
+def pickleLoadSimHash():
+    file = None
+    try:
+        global seenSimHash_values
+        file = open("pickleSeenSimhash", "rb")
+        seenSimHash_values = pickle.load(file)
+    except:
+        pass
+    finally:
+        if file != None:
+            file.close()
+        return
+
+#Attempts to load words from pickle file
+def pickleLoadWords():
+    file = None
+    try:
+        global words
+        file = open("pickleWords", "rb")
+        words = pickle.load(file)
+    except:
+        pass
+    finally:
+        if file != None:
+            file.close()
+        return
+
+#Attempts to load max size from pickle file
+def pickleLoadMax():
+    file = None
+    try:
+        global maxSize
+        file = open("pickleMax", "rb")
+        maxSize = pickle.load(file)
+    except:
+        pass
+    finally:
+        if file != None:
+            file.close()
+        return
+
+#Attempts to save all our words dictionary into their pickle file
+def pickleSaveWords() ->None:
+    global words
+    file = open("pickleWords", "wb")
+    pickle.dump(words, file)
+    file.close
+    return
+
+#Attempts to save all list of seen simhashes into their pickle file
+def pickleSaveSimHash() ->None:
+    global seenSimHash_values
+    file = open("pickleSeenSimhash", "wb")
+    pickle.dump(seenSimHash_values, file)
+    file.close
+    return
+
+#Attempts to save set of seen URLs into their pickle file
+def pickleSaveUrls() ->None:
+    global seenURLs
+    file = open("pickleSeenUrls", "wb")
+    pickle.dump(seenURLs, file)
+    file.close
+    return
+
+#Attempts to save set pair of max size and corresponding url into their pickle file
+def pickleSaveMax() ->None:
+    global maxSize
+    file = open("pickleMax", "wb")
+    pickle.dump(maxSize, file)
+    file.close
     return
 
 #Returns absolute path given base url and rel_url
@@ -149,8 +238,12 @@ def updateDict(dic2:dict) -> None:
             words[x] += dic2[x]
         else:
             words[x] = dic2[x]
+    pickleSaveWords()
 
 def scraper(url, resp):
+    #If our words dict is empty, either we just started fresh or we're continuing off after server crash, so try to get values.
+    if len(words) == 0:
+        pickleLoad()
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
@@ -166,6 +259,7 @@ def extract_next_links(url, resp):
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     extracted_urls =[]
     seenURLs.add(url)
+    pickleSaveUrls()
     #Checks to make sure status code is 200/OK meaning we got the page
     if resp.status == 200:
         html_content = resp.raw_response.content
@@ -186,6 +280,7 @@ def extract_next_links(url, resp):
         if maxSize[0] == -1 or maxSize[0] < len(tokens):
             maxSize[0] = len(tokens)
             maxSize[1] = url
+            pickleSaveMax()
         #Calculate the given urls' word frequencies
         newFreqs = compute_word_frequencies(tokens)
         #Check if low information value, return empty list if so because mostly stop words
@@ -200,6 +295,8 @@ def extract_next_links(url, resp):
         stats = open("stats.txt", "w")
         print(f"Current token list: {words}", file = stats)
         print(f"Current page with max size is: {maxSize}", file = stats)
+        print(f"Urls are: {seenURLs}", file = stats)
+        stats.close()
     else:
         #Return early if there is no content, nothing to explore in that URL
         return []
@@ -232,6 +329,7 @@ def is_valid(url):
         if len(seenURLs)>=1 and any(similarUrl(url, x) for x in seenURLs):
             return False
         seenURLs.add(url)
+        pickleSaveUrls()
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
