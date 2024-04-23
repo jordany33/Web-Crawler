@@ -47,6 +47,18 @@ def similarUrl(url1: str, url2: str) ->bool:
     #Return true to indicate similar if similarity proportion higher than threshold, else false
     return ((float(simCount)/float(maxEndLength))> 0.9)
 
+def compute_hash(page):
+    hash = hashlib.sha256()
+    hash.update(page.encode('utf-8'))
+    return hash.hexdigest()
+
+def exact_duplicate_detection(page):
+    page_hash = compute_hash(page)
+    if page_hash in seenHashes:
+        return True
+    seenHashes.add(page_hash)
+    return False
+
 #Returns a simhash value made from the list of tokens
 def simHash(tokens) -> 'simHash':
     return
