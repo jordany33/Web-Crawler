@@ -292,8 +292,15 @@ def extract_next_links(url, resp):
     crawledURLs.add(url)
     pickleSaveCrawls()
     #Checks to make sure status code is 200/OK meaning we got the page
+    redirect_codes = [301, 302, 307, 308]
     if resp.status == 200:
         html_content = resp.raw_response.content
+    elif resp.status in redirect_codes:
+        # Check if the 'Location' header is present, which contains the redirect URL
+        if 'Location' in resp.headers:
+            return [resp.headers['Location']]
+        else:
+            return []
     #Returns empty list if we failed to get the page
     else:
         return []
