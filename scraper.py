@@ -59,10 +59,6 @@ def exact_duplicate_detection(page):
     seenHashes.add(page_hash)
     return False
 
-#Returns a simhash value made from the list of tokens
-def simHash(tokens) -> 'simHash':
-    return
-
 #Compute simhash of our file using the passed in dictionary and returns a bool indicating if it was similar to previous ones or not
 def simhashClose(tokens):
     global seenSimHash_values
@@ -352,7 +348,7 @@ def extract_next_links(url, resp):
         #Removes the fragment if there is one before adding to the list of URLs
         if link.get('href'):
             toAdd = link.get('href')
-            toadd = urljoin(base_url, rel_url)
+            toadd = urljoin(url, toAdd)
             frag = toAdd.find('#')
             if frag != -1:
                 toAdd = toAdd[0:frag]
