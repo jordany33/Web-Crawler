@@ -13,7 +13,7 @@ words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
 maxSize = [-1, '']
 stopWords = ['a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', "can't", 'cannot', 'could', "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't", 'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how', "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most', "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours\tourselves', 'out', 'over', 'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should', "shouldn't", 'so', 'some', 'such', 'than', 'that', "that's", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd", "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when', "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom', 'why', "why's", 'with', "won't", 'would', "wouldn't", 'you', "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves']
-
+startSeeds = ["https://www.ics.uci.edu","https://www.cs.uci.edu","https://www.informatics.uci.edu","https://www.stat.uci.edu"]
 #Compares URLs based on their paths, returning a bool determining if they are similar enough based on a threshold similarity value
 def similarUrl(url1: str, url2: str) ->bool:
     #Parse urls
@@ -46,18 +46,6 @@ def similarUrl(url1: str, url2: str) ->bool:
             simCount = simCount + 1
     #Return true to indicate similar if similarity proportion higher than threshold, else false
     return ((float(simCount)/float(maxEndLength))> 0.9)
-
-def compute_hash(page):
-    hash = hashlib.sha256()
-    hash.update(page.encode('utf-8'))
-    return hash.hexdigest()
-
-def exact_duplicate_detection(page):
-    page_hash = compute_hash(page)
-    if page_hash in seenHashes:
-        return True
-    seenHashes.add(page_hash)
-    return False
 
 #Returns a simhash value made from the list of tokens
 def simHash(tokens) -> 'simHash':
@@ -192,17 +180,17 @@ def pickleSaveMax() ->None:
     return
 
 #Returns absolute path given base url and rel_url
-def getAbsolute(base_url:str, rel_url:str) ->str:
-    #If they're the same just return the base back
-    return urljoin(base_url, rel_url)
-    if base_url == rel_url:
-        return base_url
-    parsed_url = urlparse(base_url)
-    #Adding the / to base to allow us to make valid absolute URLs if the rel_url has no slash in front, 
-    #since normally it gets stripped and urljoin creates incorrect urls
-    if len(base_url)>0 and base_url[-1] != '/' and rel_url.find('/') != 0 and '.' not in parsed_url.path.split('/')[-1]:
-        base_url = base_url + '/'
-    return urljoin(base_url, rel_url)
+# def getAbsolute(base_url:str, rel_url:str) ->str:
+#     #If they're the same just return the base back
+#     return urljoin(base_url, rel_url)
+#     if base_url == rel_url:
+#         return base_url
+#     parsed_url = urlparse(base_url)
+#     #Adding the / to base to allow us to make valid absolute URLs if the rel_url has no slash in front, 
+#     #since normally it gets stripped and urljoin creates incorrect urls
+#     if len(base_url)>0 and base_url[-1] != '/' and rel_url.find('/') != 0 and '.' not in parsed_url.path.split('/')[-1]:
+#         base_url = base_url + '/'
+#     return urljoin(base_url, rel_url)
 
 #Given a url, returns how many directories deep it is in it's path 
 def directory_length(url) -> int:
@@ -293,6 +281,8 @@ def extract_next_links(url, resp):
     extracted_urls =[]
     seenURLs.add(url)
     pickleSaveUrls()
+    if url in crawledURLs:
+        return []
     crawledURLs.add(url)
     pickleSaveCrawls()
     #Checks to make sure status code is 200/OK meaning we got the page
@@ -326,7 +316,7 @@ def extract_next_links(url, resp):
         #Calculate the given urls' word frequencies
         newFreqs = compute_word_frequencies(tokens)
         #Check if content is similar using simhash, return empty list without scraping for urls if so
-        if simhashClose(newFreqs):
+        if url not in startSeeds and simhashClose(newFreqs):
             rej = open("rejected.txt", "a")
             print(f"simHashClose rejected: {url}", file = rej)
             rej.close()
@@ -337,8 +327,8 @@ def extract_next_links(url, resp):
         stats = open("stats.txt", "w")
         print(f"Current token list: {words}", file = stats)
         print(f"Current page with max size is: {maxSize}", file = stats)
-        print(f"Urls are: {seenURLs}, and there are {len(seenURLs)}", file = stats)
-        print(f"Urls are: {crawledURLs}, and there are {len(crawledURLs)}", file = stats)
+        print(f"Seen Urls are: {seenURLs}, and there are {len(seenURLs)}", file = stats)
+        print(f"Crawled Urls are: {crawledURLs}, and there are {len(crawledURLs)}", file = stats)
         stats.close()
     else:
         #Return early if there is no content, nothing to explore in that URL
@@ -350,7 +340,7 @@ def extract_next_links(url, resp):
         #Removes the fragment if there is one before adding to the list of URLs
         if link.get('href'):
             toAdd = link.get('href')
-            toadd = getAbsolute(url, toAdd)
+            toadd = urljoin(base_url, rel_url)
             frag = toAdd.find('#')
             if frag != -1:
                 toAdd = toAdd[0:frag]
