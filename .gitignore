@@ -108,3 +108,11 @@ venv.bak/
 
 *.full.py
 *.shelve
+
+stats.txt
+pickleCrawledUrls
+pickleMax
+pickleSeenSimhash
+pickleSeenUrls
+pickleWords
+rejected.txt
