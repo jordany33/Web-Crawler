@@ -8,6 +8,7 @@ seenURLs = set()
 crawledURLs = set()
 seenSimHash_values= []
 seenSimHashedUrls = set()
+seenHashes = set()
 words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
 maxSize = [-1, '']
@@ -45,6 +46,18 @@ def similarUrl(url1: str, url2: str) ->bool:
             simCount = simCount + 1
     #Return true to indicate similar if similarity proportion higher than threshold, else false
     return ((float(simCount)/float(maxEndLength))> 0.9)
+
+def compute_hash(page):
+    hash = hashlib.sha256()
+    hash.update(page.encode('utf-8'))
+    return hash.hexdigest()
+
+def exact_duplicate_check(page):
+    page_hash = compute_hash(page)
+    if page_hash in seenHashes:
+        return True
+    seenHashes.add(page_hash)
+    return False
 
 #Returns a simhash value made from the list of tokens
 def simHash(tokens) -> 'simHash':
