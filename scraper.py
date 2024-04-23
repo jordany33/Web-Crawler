@@ -355,7 +355,7 @@ def extract_next_links(url, resp):
         #Check if content is similar using simhash, return empty list without scraping for urls if so
         if url not in startSeeds and (simhashClose(newFreqs) or exact_duplicate_detection(tokens)):
             rej = open("rejected.txt", "a")
-            print(f"simHashClose rejected: {url}", file = rej)
+            print(f"simHashClose or exact dup rejected: {url}", file = rej)
             rej.close()
             return []
         #Update global counts
@@ -373,6 +373,7 @@ def extract_next_links(url, resp):
 
     #Extracts all the URLs found within a page’s <a> tags, based on beautiful soup documentation
     links = html_parsed.find_all('a')
+    links.extend(html_parsed.find_all('link'))
     for link in links:
         #Removes the fragment if there is one before adding to the list of URLs
         if link.get('href'):
@@ -414,6 +415,9 @@ def is_valid(url):
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
         if url not in startSeeds and detectSimilarUrl(url):
+            rej = open("rejected.txt", "a")
+            print(f"detectSimilarURL rejected: {url}", file = rej)
+            rej.close()
             return False
         #Returns false if the url is not within the domains and paths mentioned above
         if (((".ics.uci.edu") in (parsed.netloc)) or 
