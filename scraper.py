@@ -52,7 +52,7 @@ def compute_hash(page):
     hash.update(page.encode('utf-8'))
     return hash.hexdigest()
 
-def exact_duplicate_check(page):
+def exact_duplicate_detection(page):
     page_hash = compute_hash(page)
     if page_hash in seenHashes:
         return True
