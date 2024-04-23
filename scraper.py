@@ -20,23 +20,30 @@ def similarUrl(url1: str, url2: str) ->bool:
     #If different domain don't worry, or if any path has no characters
     if (parsed_url1.netloc != parsed_url2.netloc):
         return False
-    #Get minimum path length, if its zero you can return since one doesn't have a path, and we already accounted for identical urls elsewhere
-    len1 = len(parsed_url1.path)
-    len2 = len(parsed_url2.path)
-    minLength = min(len1, len2)
-    #Get max and difference in lengths to calculate proportion of identical characters in same index
-    maxLength = max(len1, len2)
-    diffLen = abs(len1 - len2)
-    if minLength == 0:
+    #Get individual sections of path and their depths, if its zero you can return since at least one doesn't have a path
+    path1 = parsed_url1.path.split('/')
+    path2 = parsed_url2.path.split('/')
+    len1 = len(path1)
+    len2 = len(path2)
+    #Path not even same depth or one has no path, no need to check
+    if len1 != len2 or min(len1,len2) == 0:
         return False
-    #Var to count how many letters they share in the same index
+    #Same length here, but basically check they have each section of path identical except for last, then last is where we do final check
+    for x in range(len1-1):
+        if path1[x] != path2[x]:
+            return False
+    minEndLength = min(len(path1[len1-1]), len(path2[len2-1]))
+    #If no last parth in path, can just return here to avoid 0 division
+    if minEndLength == 0:
+        return False
+    maxEndLength = max(len(path1[len1-1]), len(path2[len2-1]))
+    #Var to count how many letters they share in the same index at last part of their paths
     simCount = 0
-    #Count letters they shared in the same index
-    for x in range(minLength):
-        if parsed_url1.path[x] == parsed_url2.path[x]:
+    for x in range(minEndLength):
+        if path1[len1-1][x] == path1[len1-1][x]:
             simCount = simCount + 1
-    #Return true to indicate similar if similarity proportion higher than threshold
-    return ((float(simCount)/float(maxLength))> 0.9)
+    #Return true to indicate similar if similarity proportion higher than threshold, else false
+    return ((float(simCount)/float(maxEndLength))> 0.9)
 
 #Returns a boolean indicating whether or not the information reaches has low information value
 #Informational value calculated by proportion of stop words to real words
@@ -53,10 +60,10 @@ def isLowVal(freqs: dict)->bool:
     return ((float(countStop)/float(countTotal))>0.75)
 
 #Compute simhash of our file using the passed in dictionary and returns a bool indicating if it was similar to previous ones or not
-def simhashClose(tokens_dict):
+def simhashClose(tokens):
     global seenSimHash_values
-    simhash_val = Simhash(tokens_dict)
-    if len(seenSimHash_values)>1 and any(simhash_val.distance(i) < 3 for i in seenSimHash_values):
+    simhash_val = Simhash(tokens)
+    if any(simhash_val.distance(i) < 3 for i in seenSimHash_values):
         return True
     seenSimHash_values.append(simhash_val)
     pickleSaveSimHash()
@@ -183,12 +190,13 @@ def pickleSaveMax() ->None:
 #Returns absolute path given base url and rel_url
 def getAbsolute(base_url:str, rel_url:str) ->str:
     #If they're the same just return the base back
+    return urljoin(base_url, rel_url)
     if base_url == rel_url:
         return base_url
     parsed_url = urlparse(base_url)
     #Adding the / to base to allow us to make valid absolute URLs if the rel_url has no slash in front, 
     #since normally it gets stripped and urljoin creates incorrect urls
-    if rel_url.find('/') != 0 and '.' not in parsed_url.path.split('/')[-1]:
+    if len(base_url)>0 and base_url[-1] != '/' and rel_url.find('/') != 0 and '.' not in parsed_url.path.split('/')[-1]:
         base_url = base_url + '/'
     return urljoin(base_url, rel_url)
 
@@ -216,13 +224,15 @@ def tokenize(content: str) -> list:
             curTok = curTok + c
         else:
             if curTok != '':
-                tokens.append(curTok)
+                if curTok not in stopWords:
+                    tokens.append(curTok)
                 curTok = ''
         cur = cur + 1
     #For when we reach the end of the content, check what our last token is
     #If our curTok isn't empty, add it to token list
     if curTok != '':
-        tokens.append(curTok)
+        if curTok not in stopWords:
+            tokens.append(curTok)
     return tokens
 
 def compute_word_frequencies(token_list: list) -> dict:
@@ -296,7 +306,7 @@ def extract_next_links(url, resp):
         tokens = tokenize(html_parsed.get_text())
         #Only crawl if there is a reasonable level of content, otherwise don't crawl, done by checking first the number of tokens
         #to make sure they reach a certain threshold
-        if len(tokens) < 100:
+        if len(tokens) < 50:
             return []
         if maxSize[0] == -1 or maxSize[0] < len(tokens):
             maxSize[0] = len(tokens)
@@ -304,11 +314,11 @@ def extract_next_links(url, resp):
             pickleSaveMax()
         #Calculate the given urls' word frequencies
         newFreqs = compute_word_frequencies(tokens)
-        #Check if low information value, return empty list if so because mostly stop words
-        if isLowVal(newFreqs):
-            return []
         #Check if content is similar using simhash, return empty list without scraping for urls if so
         if simhashClose(newFreqs):
+            rej = open("rejected.txt", "a")
+            print(f"simHashClose rejected: {url}", file = rej)
+            rej.close()
             return []
         #Update global counts
         updateDict(newFreqs)
@@ -316,7 +326,8 @@ def extract_next_links(url, resp):
         stats = open("stats.txt", "w")
         print(f"Current token list: {words}", file = stats)
         print(f"Current page with max size is: {maxSize}", file = stats)
-        print(f"Urls are: {seenURLs}", file = stats)
+        print(f"Urls are: {seenURLs}, and there are {len(seenURLs)}", file = stats)
+        print(f"Urls are: {crawledURLs}, and there are {len(crawledURLs)}", file = stats)
         stats.close()
     else:
         #Return early if there is no content, nothing to explore in that URL
@@ -345,9 +356,9 @@ def is_valid(url):
             return False
         #If you go really deep into directories, at a certain threshold you are probably going into a trap
         if directory_length(url) > 10:
-            return False
-        #If url too similar, may be a pattern that leads to trap
-        if len(seenURLs)>=1 and any(similarUrl(url, x) for x in seenURLs):
+            rej = open("rejected.txt", "a")
+            print(f"dirLength rejected: {url}", file = rej)
+            rej.close()
             return False
         seenURLs.add(url)
         pickleSaveUrls()
