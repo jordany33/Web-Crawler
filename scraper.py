@@ -7,7 +7,7 @@ from simhash import Simhash
 seenURLs = set()
 crawledURLs = set()
 seenSimHash_values= []
-seenSimHashedUrls = set()
+seenSimHashedUrls = []
 seenHashes = set()
 words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
@@ -20,9 +20,9 @@ def detectSimilarUrl(url) ->bool:
     global seenSimHashedUrls
     tokens = tokenize(url)
     simhash_url = Simhash(tokens)
-    if any(simhash_val.distance(i) < 3 for i in seenSimHashedUrls):
+    if any(simhash_url.distance(i) < 3 for i in seenSimHashedUrls):
         return True
-    seenSimHash_values.append(simhash_val)
+    seenSimHashedUrls.append(simhash_url)
     pickleSaveSeenSimUrls()
     return False
 
@@ -209,7 +209,7 @@ def pickleSaveSeenSimUrls() ->None:
     return
 
 #Attempts to save seem simhash values of urls
-def pickleSaveSeenSimUrls() ->None:
+def pickleSaveSeenHash() ->None:
     global seenHashes
     file = open("pickleSeenHashes", "wb")
     pickle.dump(seenHashes, file)
@@ -413,7 +413,7 @@ def is_valid(url):
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
-        if url not in startSeeds and detectSimilarUrl():
+        if url not in startSeeds and detectSimilarUrl(url):
             return False
         #Returns false if the url is not within the domains and paths mentioned above
         if (((".ics.uci.edu") in (parsed.netloc)) or 
