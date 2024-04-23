@@ -385,10 +385,8 @@ def is_valid(url):
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
         #Returns false if the url is not within the domains and paths mentioned above
-        if (((".ics.uci.edu") in (parsed.netloc)) or 
-                ((".cs.uci.edu") in (parsed.netloc)) or 
-                ((".informatics.uci.edu") in (parsed.netloc)) or 
-                ((".stat.uci.edu") in (parsed.netloc))):
+        allowed_domains = [".ics.uci.edu", ".cs.uci.edu", ".informatics.uci.edu", ".stat.uci.edu"]
+        if any(parsed.netloc.endswith(domain) for domain in allowed_domains):
             return True
         return False
     except TypeError:
