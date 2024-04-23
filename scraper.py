@@ -2,11 +2,12 @@ import re
 import pickle
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
+import hashlib
 from simhash import Simhash
-
 seenURLs = set()
 crawledURLs = set()
-seenSimHash_values= []
+seenSimHash_values= set()
+seenSimHashedUrls = set()
 words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
 maxSize = [-1, '']
@@ -45,19 +46,9 @@ def similarUrl(url1: str, url2: str) ->bool:
     #Return true to indicate similar if similarity proportion higher than threshold, else false
     return ((float(simCount)/float(maxEndLength))> 0.9)
 
-#Returns a boolean indicating whether or not the information reaches has low information value
-#Informational value calculated by proportion of stop words to real words
-def isLowVal(freqs: dict)->bool:
-    #Counts frequency of stop and total words, then finds proportion of stop words relative to total
-    countStop = 0
-    countTotal = 0
-    for x in freqs.keys():
-        countTotal = countTotal + freqs[x]
-        if x in stopWords:
-            countStop = countStop + freqs[x]
-    if countTotal == 0:
-        return True
-    return ((float(countStop)/float(countTotal))>0.75)
+#Returns a simhash value made from the list of tokens
+def simHash(tokens) -> 'simHash':
+    return
 
 #Compute simhash of our file using the passed in dictionary and returns a bool indicating if it was similar to previous ones or not
 def simhashClose(tokens):
