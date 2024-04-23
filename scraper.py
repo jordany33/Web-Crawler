@@ -14,49 +14,33 @@ alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q",
 maxSize = [-1, '']
 stopWords = ['a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', "can't", 'cannot', 'could', "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't", 'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how', "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most', "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours\tourselves', 'out', 'over', 'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should', "shouldn't", 'so', 'some', 'such', 'than', 'that', "that's", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd", "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when', "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom', 'why', "why's", 'with', "won't", 'would', "wouldn't", 'you', "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves']
 startSeeds = ["https://www.ics.uci.edu","https://www.cs.uci.edu","https://www.informatics.uci.edu","https://www.stat.uci.edu"]
-#Compares URLs based on their paths, returning a bool determining if they are similar enough based on a threshold similarity value
-def similarUrl(url1: str, url2: str) ->bool:
-    #Parse urls
-    parsed_url1 = urlparse(url1)
-    parsed_url2 = urlparse(url2)
-    #If different domain don't worry, or if any path has no characters
-    if (parsed_url1.netloc != parsed_url2.netloc):
-        return False
-    #Get individual sections of path and their depths, if its zero you can return since at least one doesn't have a path
-    path1 = parsed_url1.path.split('/')
-    path2 = parsed_url2.path.split('/')
-    len1 = len(path1)
-    len2 = len(path2)
-    #Path not even same depth or one has no path, no need to check
-    if len1 != len2 or min(len1,len2) == 0:
-        return False
-    #Same length here, but basically check they have each section of path identical except for last, then last is where we do final check
-    for x in range(len1-1):
-        if path1[x] != path2[x]:
-            return False
-    minEndLength = min(len(path1[len1-1]), len(path2[len2-1]))
-    #If no last parth in path, can just return here to avoid 0 division
-    if minEndLength == 0:
-        return False
-    maxEndLength = max(len(path1[len1-1]), len(path2[len2-1]))
-    #Var to count how many letters they share in the same index at last part of their paths
-    simCount = 0
-    for x in range(minEndLength):
-        if path1[len1-1][x] == path1[len1-1][x]:
-            simCount = simCount + 1
-    #Return true to indicate similar if similarity proportion higher than threshold, else false
-    return ((float(simCount)/float(maxEndLength))> 0.9)
 
-def compute_hash(page):
+#Compares URLs based on hash with previous urls, returning a bool determining if they are similar enough based on a threshold similarity value
+def detectSimilarUrl(url) ->bool:
+    global seenSimHashedUrls
+    tokens = tokenize(url)
+    simhash_url = Simhash(tokens)
+    if any(simhash_val.distance(i) < 3 for i in seenSimHashedUrls):
+        return True
+    seenSimHash_values.append(simhash_val)
+    pickleSaveSeenSimUrls()
+    return False
+
+#Returns hash based on tokens, used to detect exact duplicates
+def compute_hash(tokens):
     hash = hashlib.sha256()
-    hash.update(page.encode('utf-8'))
+    content = ' '.join(tokens)
+    hash.update(content.encode('utf-8'))
     return hash.hexdigest()
 
-def exact_duplicate_detection(page):
-    page_hash = compute_hash(page)
+#Return if list of tokens has been seen before
+def exact_duplicate_detection(tokens):
+    global seenHashes
+    page_hash = compute_hash(tokens)
     if page_hash in seenHashes:
         return True
     seenHashes.add(page_hash)
+    pickleSaveSeenHash()
     return False
 
 #Compute simhash of our file using the passed in dictionary and returns a bool indicating if it was similar to previous ones or not
@@ -76,6 +60,8 @@ def pickleLoad() ->None:
     pickleLoadWords()
     pickleLoadMax()
     pickleLoadCrawledUrls()
+    pickleLoadSeenSimUrls()
+    pickleLoadSeenHash()
     return
 
 #Attempts to load seenurls from pickle file
@@ -91,6 +77,33 @@ def pickleLoadSeenUrls():
         if file != None:
             file.close()
         return
+
+def pickleLoadSeenSimUrls():
+    file = None
+    try:
+        global seenSimHashedUrls
+        file = open("pickleSeenSimUrls", "rb")
+        seenSimHashedUrls = pickle.load(file)
+    except:
+        pass
+    finally:
+        if file != None:
+            file.close()
+        return
+
+def pickleLoadSeenHash():
+    file = None
+    try:
+        global seenHashes
+        file = open("pickleSeenHashes", "rb")
+        seenHashes = pickle.load(file)
+    except:
+        pass
+    finally:
+        if file != None:
+            file.close()
+        return
+
 #Attempts to load craweldurls from pickle file
 def pickleLoadCrawledUrls():
     file = None
@@ -184,6 +197,22 @@ def pickleSaveMax() ->None:
     global maxSize
     file = open("pickleMax", "wb")
     pickle.dump(maxSize, file)
+    file.close
+    return
+
+#Attempts to save seem simhash values of urls
+def pickleSaveSeenSimUrls() ->None:
+    global seenSimHashedUrls
+    file = open("pickleSeenSimUrls", "wb")
+    pickle.dump(seenSimHashedUrls, file)
+    file.close
+    return
+
+#Attempts to save seem simhash values of urls
+def pickleSaveSeenSimUrls() ->None:
+    global seenHashes
+    file = open("pickleSeenHashes", "wb")
+    pickle.dump(seenHashes, file)
     file.close
     return
 
@@ -324,7 +353,7 @@ def extract_next_links(url, resp):
         #Calculate the given urls' word frequencies
         newFreqs = compute_word_frequencies(tokens)
         #Check if content is similar using simhash, return empty list without scraping for urls if so
-        if url not in startSeeds and simhashClose(newFreqs):
+        if url not in startSeeds and (simhashClose(newFreqs) or exact_duplicate_detection(tokens)):
             rej = open("rejected.txt", "a")
             print(f"simHashClose rejected: {url}", file = rej)
             rej.close()
@@ -383,6 +412,8 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
+            return False
+        if url not in startSeeds and detectSimilarUrl():
             return False
         #Returns false if the url is not within the domains and paths mentioned above
         if (((".ics.uci.edu") in (parsed.netloc)) or 
