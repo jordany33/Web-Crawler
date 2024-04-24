@@ -53,7 +53,7 @@ def simhashClose(tokens):
     pickleSaveSimHash()
     return False
 
-#Attempts to load all our global values from their stored pickle files if they exist, otherwise gives them default values
+#Attempts to load all our global values from their stored pickle files if they exist, otherwise gives them default values.
 def pickleLoad() ->None:
     pickleLoadSeenUrls()
     pickleLoadSimHash()
