@@ -285,8 +285,8 @@ def updateDict(dic2:dict) -> None:
 
 def scraper(url, resp):
     #If our words dict is empty, either we just started fresh or we're continuing off after server crash, so try to get values.
-    #if len(crawledURLs) == 0:
-        #pickleLoad()
+    if len(crawledURLs) == 0:
+        pickleLoad()
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
