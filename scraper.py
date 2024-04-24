@@ -1,7 +1,7 @@
 import re
 import pickle
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urldefrag
 import hashlib
 from simhash import Simhash
 seenURLs = set()
@@ -18,7 +18,7 @@ startSeeds = ["https://www.ics.uci.edu","https://www.cs.uci.edu","https://www.in
 #Compares URLs based on hash with previous urls, returning a bool determining if they are similar enough based on a threshold similarity value
 def detectSimilarUrl(url) ->bool:
     global seenSimHashedUrls
-    tokens = tokenize(url)
+    tokens, size = tokenize(url)
     simhash_url = Simhash(tokens)
     if any(simhash_url.distance(i) < 3 for i in seenSimHashedUrls):
         return True
@@ -216,31 +216,14 @@ def pickleSaveSeenHash() ->None:
     file.close
     return
 
-#Returns absolute path given base url and rel_url
-# def getAbsolute(base_url:str, rel_url:str) ->str:
-#     #If they're the same just return the base back
-#     return urljoin(base_url, rel_url)
-#     if base_url == rel_url:
-#         return base_url
-#     parsed_url = urlparse(base_url)
-#     #Adding the / to base to allow us to make valid absolute URLs if the rel_url has no slash in front, 
-#     #since normally it gets stripped and urljoin creates incorrect urls
-#     if len(base_url)>0 and base_url[-1] != '/' and rel_url.find('/') != 0 and '.' not in parsed_url.path.split('/')[-1]:
-#         base_url = base_url + '/'
-#     return urljoin(base_url, rel_url)
-
-#Given a url, returns how many directories deep it is in it's path 
-def directory_length(url) -> int:
-    parsed_url=urlparse(url)
-    return len(parsed_url.path.split('/')) - 1
-
-#Reads the content and returns a list of the alphanumeric tokens within it
-def tokenize(content: str) -> list:
+#Reads the content and returns a list of the alphanumeric tokens not including stop words within it and total num of tokens including stop words
+def tokenize(content: str) -> (list, int):
     #Vars below are our current token we are building and the list of tokens respectively
     curTok = ''
     tokens = []
     file = None
     cur = 0
+    size = 0
     #Going through the content string at a time
     while cur < len(content):
         #Read at most 5 chars
@@ -256,13 +239,15 @@ def tokenize(content: str) -> list:
                 if curTok not in stopWords:
                     tokens.append(curTok)
                 curTok = ''
+                size = size + 1
         cur = cur + 1
     #For when we reach the end of the content, check what our last token is
     #If our curTok isn't empty, add it to token list
     if curTok != '':
         if curTok not in stopWords:
             tokens.append(curTok)
-    return tokens
+        size = size+1
+    return tokens, size
 
 def compute_word_frequencies(token_list: list) -> dict:
     """
@@ -300,8 +285,8 @@ def updateDict(dic2:dict) -> None:
 
 def scraper(url, resp):
     #If our words dict is empty, either we just started fresh or we're continuing off after server crash, so try to get values.
-    if len(words) == 0:
-        pickleLoad()
+    #if len(crawledURLs) == 0:
+        #pickleLoad()
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
@@ -315,15 +300,21 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
+    #Add url to seen
     extracted_urls =[]
     seenURLs.add(url)
-    pickleSaveUrls()
-    if url in crawledURLs:
-        return []
     crawledURLs.add(url)
+    pickleSaveUrls()
     pickleSaveCrawls()
+    #If similar url don't crawl
+    # if url not in startSeeds and detectSimilarUrl(url):
+    #     rej = open("rejected.txt", "a")
+    #     print(f"detectSimilarURL rejected: {url}", file = rej)
+    #     rej.close()
+    #     return []
     #Checks to make sure status code is 200/OK meaning we got the page
     redirect_codes = [301, 302, 307, 308]
+    html_content = None
     if resp.status == 200:
         html_content = resp.raw_response.content
     elif resp.status in redirect_codes:
@@ -337,53 +328,52 @@ def extract_next_links(url, resp):
         return []
 
     #If there is content, parse it
-    if html_content:
-        global maxSize
-        html_parsed = BeautifulSoup(html_content, 'lxml')
-        #Tokenize the string, then update the max_size variables
-        tokens = tokenize(html_parsed.get_text())
-        #Only crawl if there is a reasonable level of content, otherwise don't crawl, done by checking first the number of tokens
-        #to make sure they reach a certain threshold
-        if len(tokens) < 50:
-            return []
-        if maxSize[0] == -1 or maxSize[0] < len(tokens):
-            maxSize[0] = len(tokens)
-            maxSize[1] = url
-            pickleSaveMax()
-        #Calculate the given urls' word frequencies
-        newFreqs = compute_word_frequencies(tokens)
-        #Check if content is similar using simhash, return empty list without scraping for urls if so
-        if url not in startSeeds and (simhashClose(newFreqs) or exact_duplicate_detection(tokens)):
-            rej = open("rejected.txt", "a")
-            print(f"simHashClose or exact dup rejected: {url}", file = rej)
-            rej.close()
-            return []
-        #Update global counts
-        updateDict(newFreqs)
-        #Create a stats.txt if it doesn't exist, otherwise overwrite it
-        stats = open("stats.txt", "w")
-        print(f"Current token list: {words}", file = stats)
-        print(f"Current page with max size is: {maxSize}", file = stats)
-        print(f"Seen Urls are: {seenURLs}, and there are {len(seenURLs)}", file = stats)
-        print(f"Crawled Urls are: {crawledURLs}, and there are {len(crawledURLs)}", file = stats)
-        stats.close()
-    else:
-        #Return early if there is no content, nothing to explore in that URL
+    if html_content == None:
         return []
+    global maxSize
+    html_parsed = BeautifulSoup(html_content, "html.parser")
+    #Tokenize the string, then update the max_size variables
+    tokens, size = tokenize(html_parsed.get_text())
+    #Only crawl if there is a reasonable level of content, otherwise don't crawl, done by checking first the number of tokens
+    #to make sure they reach a certain threshold
+    #if len(tokens) < 30:
+    #    return []
+    if maxSize[0] == -1 or maxSize[0] < len(tokens):
+        maxSize[0] = size
+        maxSize[1] = resp.url
+        pickleSaveMax()
+        if size>60000:
+            return []
+    #Check if content is similar using simhash, return empty list without scraping for urls if so
+    # if url not in startSeeds and (simhashClose(tokens) or exact_duplicate_detection(tokens)):
+    #     rej = open("rejected.txt", "a")
+    #     print(f"simHashClose or exact dup rejected: {url}", file = rej)
+    #     rej.close()
+    #     return []
+    #Calculate the given urls' word frequencies
+    newFreqs = compute_word_frequencies(tokens)
+    #Update global counts
+    updateDict(newFreqs)
+    #Create a stats.txt if it doesn't exist, otherwise overwrite it
+    stats = open("stats.txt", "w")
+    print(f"Current token list: {words}", file = stats)
+    print(f"Current page with max size is: {maxSize}", file = stats)
+    print(f"Seen Urls are: {seenURLs}, and there are {len(seenURLs)}", file = stats)
+    print(f"Crawled Urls are: {crawledURLs}, and there are {len(crawledURLs)}", file = stats)
+    stats.close()
 
     #Extracts all the URLs found within a page’s <a> tags, based on beautiful soup documentation
     links = html_parsed.find_all('a')
-    links.extend(html_parsed.find_all('link'))
     for link in links:
         #Removes the fragment if there is one before adding to the list of URLs
-        if link.get('href'):
+        if link.has_attr('href'):
             toAdd = link.get('href')
-            toadd = urljoin(url, toAdd)
-            frag = toAdd.find('#')
-            if frag != -1:
-                toAdd = toAdd[0:frag]
+            toAdd.strip()
+            toAdd = urldefrag(toAdd)[0]
+            toAdd = urljoin(url, toAdd)
+            linkstuff = open("links.txt", "a")
+            print(url, toAdd, file=linkstuff)
             extracted_urls.append(toAdd)
-
     return extracted_urls
 
 def is_valid(url):
@@ -393,14 +383,6 @@ def is_valid(url):
     try:
         if url in seenURLs:
             return False
-        #If you go really deep into directories, at a certain threshold you are probably going into a trap
-        if directory_length(url) > 10:
-            rej = open("rejected.txt", "a")
-            print(f"dirLength rejected: {url}", file = rej)
-            rej.close()
-            return False
-        seenURLs.add(url)
-        pickleSaveUrls()
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -414,18 +396,13 @@ def is_valid(url):
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
-        if url not in startSeeds and detectSimilarUrl(url):
-            rej = open("rejected.txt", "a")
-            print(f"detectSimilarURL rejected: {url}", file = rej)
-            rej.close()
-            return False
         #Returns false if the url is not within the domains and paths mentioned above
-        if (((".ics.uci.edu") in (parsed.netloc)) or 
+        seenURLs.add(url)
+        pickleSaveUrls()
+        return (((".ics.uci.edu") in (parsed.netloc)) or 
                 ((".cs.uci.edu") in (parsed.netloc)) or 
                 ((".informatics.uci.edu") in (parsed.netloc)) or 
-                ((".stat.uci.edu") in (parsed.netloc))):
-            return True
-        return False
+                ((".stat.uci.edu") in (parsed.netloc)))
     except TypeError:
         print ("TypeError for ", parsed)
         raise
