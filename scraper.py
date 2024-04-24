@@ -350,7 +350,7 @@ def extract_next_links(url, resp):
         print(f"simHashClose or exact dup rejected: {url}", file = rej)
         rej.close()
         return []
-    Calculate the given urls' word frequencies
+    # Calculate the given urls' word frequencies
     newFreqs = compute_word_frequencies(tokens)
     #Update global counts
     updateDict(newFreqs)
