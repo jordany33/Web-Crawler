@@ -26,12 +26,31 @@ def detectSimilarUrl(url) ->bool:
     pickleSaveSeenSimUrls()
     return False
 
-#Returns hash based on tokens, used to detect exact duplicates
-def compute_hash(tokens):
-    hash = hashlib.sha256()
-    content = ' '.join(tokens)
-    hash.update(content.encode('utf-8'))
-    return hash.hexdigest()
+def token_hash(token, bits=64):
+    hash_value = hashlib.sha256(token.encode('utf-8')).bits()
+    return int(hash_value, 16) % (1 << bits)
+
+def compute_simhash(tokens, bits=64):
+    count = [0] * bits
+    for i in tokens:
+        hashed = token_hash(i, bits)
+        for j in range(bits):
+            count[i] += 1 if (hashed & (1 << i)) else -1
+    
+    simhash = 0
+    for j in range(bits):
+        if count[i] > 0:
+            simhash |= (1 << i)
+    
+    return simhash
+
+def distance(hash1, hash2):
+    xor_op = hash1 ^ hash2
+    distance = 0
+    while xor_op:
+        distance += xor_op & 1
+        xor_op >>= 1
+    return distance
 
 #Return if list of tokens has been seen before
 def exact_duplicate_detection(tokens):
