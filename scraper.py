@@ -307,11 +307,11 @@ def extract_next_links(url, resp):
     pickleSaveUrls()
     pickleSaveCrawls()
     #If similar url don't crawl
-    # if url not in startSeeds and detectSimilarUrl(url):
-    #     rej = open("rejected.txt", "a")
-    #     print(f"detectSimilarURL rejected: {url}", file = rej)
-    #     rej.close()
-    #     return []
+    if url not in startSeeds and detectSimilarUrl(url):
+        rej = open("rejected.txt", "a")
+        print(f"detectSimilarURL rejected: {url}", file = rej)
+        rej.close()
+        return []
     #Checks to make sure status code is 200/OK meaning we got the page
     redirect_codes = [301, 302, 307, 308]
     html_content = None
@@ -336,8 +336,8 @@ def extract_next_links(url, resp):
     tokens, size = tokenize(html_parsed.get_text())
     #Only crawl if there is a reasonable level of content, otherwise don't crawl, done by checking first the number of tokens
     #to make sure they reach a certain threshold
-    #if len(tokens) < 30:
-    #    return []
+    if len(tokens) < 100:
+       return []
     if maxSize[0] == -1 or maxSize[0] < len(tokens):
         maxSize[0] = size
         maxSize[1] = resp.url
@@ -345,12 +345,12 @@ def extract_next_links(url, resp):
         if size>60000:
             return []
     #Check if content is similar using simhash, return empty list without scraping for urls if so
-    # if url not in startSeeds and (simhashClose(tokens) or exact_duplicate_detection(tokens)):
-    #     rej = open("rejected.txt", "a")
-    #     print(f"simHashClose or exact dup rejected: {url}", file = rej)
-    #     rej.close()
-    #     return []
-    #Calculate the given urls' word frequencies
+    if url not in startSeeds and (simhashClose(tokens) or exact_duplicate_detection(tokens)):
+        rej = open("rejected.txt", "a")
+        print(f"simHashClose or exact dup rejected: {url}", file = rej)
+        rej.close()
+        return []
+    Calculate the given urls' word frequencies
     newFreqs = compute_word_frequencies(tokens)
     #Update global counts
     updateDict(newFreqs)
