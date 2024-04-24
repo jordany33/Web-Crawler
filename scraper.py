@@ -373,7 +373,6 @@ def extract_next_links(url, resp):
 
     #Extracts all the URLs found within a page’s <a> tags, based on beautiful soup documentation
     links = html_parsed.find_all('a')
-    links.extend(html_parsed.find_all('link'))
     for link in links:
         #Removes the fragment if there is one before adding to the list of URLs
         if link.get('href'):
@@ -420,10 +419,8 @@ def is_valid(url):
             rej.close()
             return False
         #Returns false if the url is not within the domains and paths mentioned above
-        if (((".ics.uci.edu") in (parsed.netloc)) or 
-                ((".cs.uci.edu") in (parsed.netloc)) or 
-                ((".informatics.uci.edu") in (parsed.netloc)) or 
-                ((".stat.uci.edu") in (parsed.netloc))):
+        allowed_domains = [".ics.uci.edu", ".cs.uci.edu", ".informatics.uci.edu", ".stat.uci.edu"]
+        if any(parsed.netloc.endswith(domain) for domain in allowed_domains):
             return True
         return False
     except TypeError:
