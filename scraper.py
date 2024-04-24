@@ -20,7 +20,7 @@ def detectSimilarUrl(url) ->bool:
     global seenSimHashedUrls
     tokens, size = tokenize(url)
     simhash_url = Simhash(tokens)
-    if any(simhash_url.distance(i) < 3 for i in seenSimHashedUrls):
+    if any(simhash_url.distance(i) < 5 for i in seenSimHashedUrls):
         return True
     seenSimHashedUrls.append(simhash_url)
     pickleSaveSeenSimUrls()
@@ -47,7 +47,7 @@ def exact_duplicate_detection(tokens):
 def simhashClose(tokens):
     global seenSimHash_values
     simhash_val = Simhash(tokens)
-    if any(simhash_val.distance(i) < 3 for i in seenSimHash_values):
+    if any(simhash_val.distance(i) < 5 for i in seenSimHash_values):
         return True
     seenSimHash_values.append(simhash_val)
     pickleSaveSimHash()
@@ -306,14 +306,10 @@ def extract_next_links(url, resp):
     crawledURLs.add(url)
     pickleSaveUrls()
     pickleSaveCrawls()
-    #If similar url don't crawl
-    if url not in startSeeds and detectSimilarUrl(url):
-        rej = open("rejected.txt", "a")
-        print(f"detectSimilarURL rejected: {url}", file = rej)
-        rej.close()
-        return []
     #Checks to make sure status code is 200/OK meaning we got the page
     redirect_codes = [301, 302, 307, 308]
+    if resp == None:
+        return []
     html_content = None
     if resp.status == 200:
         html_content = resp.raw_response.content
@@ -399,6 +395,12 @@ def is_valid(url):
         #Returns false if the url is not within the domains and paths mentioned above
         seenURLs.add(url)
         pickleSaveUrls()
+        #If similar url don't crawl
+        if url not in startSeeds and detectSimilarUrl(url):
+            rej = open("rejected.txt", "a")
+            print(f"detectSimilarURL rejected: {url}", file = rej)
+            rej.close()
+            return False
         return (((".ics.uci.edu") in (parsed.netloc)) or 
                 ((".cs.uci.edu") in (parsed.netloc)) or 
                 ((".informatics.uci.edu") in (parsed.netloc)) or 
