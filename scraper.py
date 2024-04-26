@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, urldefrag
 import hashlib
 
+#Data structures used to keep track of statistics
 seenURLs = set()
 crawledURLs = set()
 seenSimHash_values= set()
@@ -52,6 +53,7 @@ def makeSimhash(tokens):
 def distance(hash1, hash2):
     hash1 = int.from_bytes(hash1, 'little')
     hash2 = int.from_bytes(hash2, 'little')
+    #Exclusive or, count 1's as they are the different bits
     distance = bin(hash1 ^ hash2).count('1')
     return distance
 
@@ -123,6 +125,7 @@ def pickleLoadSeenUrls():
             file.close()
         return
 
+#Attempts to load seen url simhash values from pickle file
 def pickleLoadSeenSimUrls():
     file = None
     try:
@@ -136,6 +139,7 @@ def pickleLoadSeenSimUrls():
             file.close()
         return
 
+#Attempts to load seen simhashes for page contents from pickle file
 def pickleLoadSeenHash():
     file = None
     try:
@@ -299,12 +303,6 @@ def tokenize(content: str) -> (list, int):
 
 def compute_word_frequencies(token_list: list) -> dict:
     """
-    Runtime Complexity: O(M), M is the number of tokens in token_list.
-        This runtime is average-case.
-        The function iterates through each token in token_list once.
-        Dictionary operations are O(1).
-        There is constant time per token.
-
     Counts and returns the number of occurrences of each token in the 
     token list using a dictionary.
 
@@ -354,7 +352,7 @@ def extract_next_links(url, resp):
     crawledURLs.add(url)
     pickleSaveUrls()
     pickleSaveCrawls()
-    #Checks to make sure status code is 200/OK meaning we got the page
+    #Checks to make sure status code is 200/OK meaning we got the page, or if it's redirected where we extract the redirected link
     redirect_codes = [301, 302, 307, 308]
     if resp == None:
         return []
@@ -371,12 +369,10 @@ def extract_next_links(url, resp):
     else:
         return []
 
-    #If there is content, parse it
+    #If there is content, parse it else return
     if html_content == None:
         return []
-    for x in html_content:
-        if not (0<= x <= 255):
-            return []
+    
     global maxSize
     html_parsed = BeautifulSoup(html_content, "html.parser")
     #Tokenize the string, then update the max_size variables
@@ -392,8 +388,13 @@ def extract_next_links(url, resp):
         maxSize[0] = size
         maxSize[1] = url
         pickleSaveMax()
+        #Store as longest file in words, but don't crawl through file with more than 60000 tokens as most things with size above this have junk data
         if size>60000:
             return []
+    #If file at least roughly 10 mb/10 million characters or more, don't crawl through it, do this here and not earlier though
+    #so if it's still the longest file by word count we record that in code above
+    if len(html_content)> 10000000:
+        return []
     #Check if content is similar using simhash, return empty list without scraping for urls if so
     if url not in startSeeds and (exact_duplicate_detection(tokens) or simhashClose(tokens)):
         rej = open("rejected.txt", "a")
@@ -404,7 +405,7 @@ def extract_next_links(url, resp):
     newFreqs = compute_word_frequencies(tokens)
     #Update global counts
     updateDict(newFreqs)
-    #Create a stats.txt if it doesn't exist, otherwise overwrite it
+    #Create a stats.txt if it doesn't exist, otherwise overwrite it, generates statistics of our data
     stats = open("stats.txt", "w")
     print(f"Current token list: {words}", file = stats)
     print(f"Current page with max size is: {maxSize}", file = stats)
@@ -433,6 +434,7 @@ def is_valid(url):
     try:
         if url in seenURLs:
             return False
+        #Check is url is ascii characters
         if not url.isascii():
             return False
         #if directory_length(url)>12:
