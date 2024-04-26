@@ -3,11 +3,11 @@ import pickle
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, urldefrag
 import hashlib
-from simhash import Simhash
+
 seenURLs = set()
 crawledURLs = set()
-seenSimHash_values= []
-seenSimHashedUrls = []
+seenSimHash_values= set()
+seenSimHashedUrls = set()
 seenHashes = set()
 words = {}
 alphaNum = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","0","1","2","3","4","5","6","7","8","9"]
@@ -15,14 +15,54 @@ maxSize = [-1, '']
 stopWords = ['a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', "can't", 'cannot', 'could', "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't", 'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how', "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most', "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours\tourselves', 'out', 'over', 'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should', "shouldn't", 'so', 'some', 'such', 'than', 'that', "that's", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd", "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when', "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom', 'why', "why's", 'with', "won't", 'would', "wouldn't", 'you', "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves']
 startSeeds = ["https://www.ics.uci.edu","https://www.cs.uci.edu","https://www.informatics.uci.edu","https://www.stat.uci.edu"]
 
+#Get a 64 bit hash for the passed in list of tokens
+def token_hash(tokens):
+    hashedToks = []
+    for token in tokens:
+        hashVal = hashlib.md5(token.encode('utf-8')).digest()
+        #Get only 64 bits of the hash as per prof reccomendation
+        hashedToks.append(hashVal[:8])
+    return hashedToks
+
+#First generates hashes of tokens, then count the number of 1's and 0's in each column of each token hash, with 0's weighed -1, and 1's 1.
+#Final count if positive makes the bit in the final hash at that position 1, else makes it 0
+def makeSimhash(tokens):
+    hashes = token_hash(tokens)
+    finHash = 0
+    #For each column, count zeroes and ones and use the sum value to decide on the corresponding bit for
+    #hash of the page
+    for x in range(0, 64):
+        count = 0
+        for hashVal in hashes:
+            #Have to reverse the binary string we get here because we are reading it left to right
+            #but trying to construct it right to left
+            hashBin = bin(int.from_bytes(hashVal, 'little')).replace("0b","")
+            hashBin = hashBin[::-1]
+            #Ensure we have a digit at the place in the string if we are checking
+            if x<len(hashBin) and hashBin[x] == '1':
+                count = count + 1
+            else:
+                count = count - 1
+        if count > 0:
+            finHash = finHash + (1<<x)
+    #Convert back to bytes since we seem to store hash as bytes by convention?
+    return finHash.to_bytes(8, 'little')
+
+#Returns the distance between hashes/number of bits where they are not the same
+def distance(hash1, hash2):
+    hash1 = int.from_bytes(hash1, 'little')
+    hash2 = int.from_bytes(hash2, 'little')
+    distance = bin(hash1 ^ hash2).count('1')
+    return distance
+
 #Compares URLs based on hash with previous urls, returning a bool determining if they are similar enough based on a threshold similarity value
 def detectSimilarUrl(url) ->bool:
     global seenSimHashedUrls
     tokens, size = tokenize(url)
-    simhash_url = Simhash(tokens)
-    if any(simhash_url.distance(i) < 5 for i in seenSimHashedUrls):
+    simhash_url = makeSimhash(tokens)
+    if any(distance(simhash_url, i) < 5 for i in seenSimHashedUrls):
         return True
-    seenSimHashedUrls.append(simhash_url)
+    seenSimHashedUrls.add(simhash_url)
     pickleSaveSeenSimUrls()
     return False
 
@@ -46,12 +86,17 @@ def exact_duplicate_detection(tokens):
 #Compute simhash of our file using the passed in dictionary and returns a bool indicating if it was similar to previous ones or not
 def simhashClose(tokens):
     global seenSimHash_values
-    simhash_val = Simhash(tokens)
-    if any(simhash_val.distance(i) < 5 for i in seenSimHash_values):
+    simhash_val = makeSimhash(tokens)
+    if any(distance(simhash_val, i) < 5 for i in seenSimHash_values):
         return True
-    seenSimHash_values.append(simhash_val)
+    seenSimHash_values.add(simhash_val)
     pickleSaveSimHash()
     return False
+
+#Given a url, returns how many directories deep it is in it's path 
+def directory_length(url) -> int:
+    parsed_url=urlparse(url)
+    return len(parsed_url.path.split('/')) - 1
 
 #Attempts to load all our global values from their stored pickle files if they exist, otherwise gives them default values.
 def pickleLoad() ->None:
@@ -217,6 +262,7 @@ def pickleSaveSeenHash() ->None:
     return
 
 #Reads the content and returns a list of the alphanumeric tokens not including stop words within it and total num of tokens including stop words
+#I also got rid of single char tokens because most of them were from junk in the file and they weren't really words
 def tokenize(content: str) -> (list, int):
     #Vars below are our current token we are building and the list of tokens respectively
     curTok = ''
@@ -236,17 +282,19 @@ def tokenize(content: str) -> (list, int):
             curTok = curTok + c
         else:
             if curTok != '':
-                if curTok not in stopWords:
+                if curTok not in stopWords and len(curTok) > 1:
                     tokens.append(curTok)
+                if len(curTok) > 1:
+                    size = size + 1
                 curTok = ''
-                size = size + 1
         cur = cur + 1
     #For when we reach the end of the content, check what our last token is
     #If our curTok isn't empty, add it to token list
     if curTok != '':
-        if curTok not in stopWords:
+        if curTok not in stopWords and len(curTok) > 1:
             tokens.append(curTok)
-        size = size+1
+        if len(curTok) > 1:
+            size = size+1
     return tokens, size
 
 def compute_word_frequencies(token_list: list) -> dict:
@@ -326,22 +374,28 @@ def extract_next_links(url, resp):
     #If there is content, parse it
     if html_content == None:
         return []
+    for x in html_content:
+        if not (0<= x <= 255):
+            return []
     global maxSize
     html_parsed = BeautifulSoup(html_content, "html.parser")
     #Tokenize the string, then update the max_size variables
-    tokens, size = tokenize(html_parsed.get_text())
+    tokens, size = tokenize(html_parsed.get_text(' '))
     #Only crawl if there is a reasonable level of content, otherwise don't crawl, done by checking first the number of tokens
     #to make sure they reach a certain threshold
     if len(tokens) < 100:
        return []
-    if maxSize[0] == -1 or maxSize[0] < len(tokens):
+    sizes = open("size.txt", "a")
+    print(f"Size: {size}, url = {url}, len is {len(tokens)}", file = sizes)
+    sizes.close()
+    if maxSize[0] == -1 or maxSize[0] < size:
         maxSize[0] = size
-        maxSize[1] = resp.url
+        maxSize[1] = url
         pickleSaveMax()
         if size>60000:
             return []
     #Check if content is similar using simhash, return empty list without scraping for urls if so
-    if url not in startSeeds and (simhashClose(tokens) or exact_duplicate_detection(tokens)):
+    if url not in startSeeds and (exact_duplicate_detection(tokens) or simhashClose(tokens)):
         rej = open("rejected.txt", "a")
         print(f"simHashClose or exact dup rejected: {url}", file = rej)
         rej.close()
@@ -379,12 +433,16 @@ def is_valid(url):
     try:
         if url in seenURLs:
             return False
+        if not url.isascii():
+            return False
+        #if directory_length(url)>12:
+        #    return False
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
         if re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
-            + r"|png|tiff?|mid|mp2|mp3|mp4"
+            r".*\.(css|js|bmp|gif|jpe?g|ico|webm|flv|pps|ppx"
+            + r"|png|tiff?|mid|mp2|mp3|mp4|mpg|img|pptm|potx|ppsx"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
